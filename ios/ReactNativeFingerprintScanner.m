@@ -10,7 +10,7 @@
 
 RCT_EXPORT_MODULE();
 
-RCT_EXPORT_METHOD(isSensorAvailable: (RCTResponseSenderBlock)callback)
+RCT_EXPORT_METHOD(isSensorAvailable: ( RCTResponseSenderBlock)callback)
 {
     LAContext *context = [[LAContext alloc] init];
     NSError *error;
@@ -57,7 +57,36 @@ RCT_EXPORT_METHOD(authenticate: (NSString *)reason
                   fallback: (BOOL)fallbackEnabled
                   callback: (RCTResponseSenderBlock)callback)
 {
-    LAContext *context = [[LAContext alloc] init];
+    [self handleAuthenticate:reason context:NULL fallback:fallbackEnabled callback:callback];
+}
+
+- (void)handleAuthenticate: (NSString *) reason
+                   context: (LAContext *)context
+                  fallback: (BOOL)fallbackEnabled
+                  callback: (RCTResponseSenderBlock)callback {
+    [self authenticate:reason
+                policy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
+               context:context fallback:fallbackEnabled
+              callback:^(NSArray *response) {
+        NSDictionary * errorDic = response[0];
+        NSString * code = [errorDic objectForKey:@"code"];
+        if ([code isEqualToString:@"DeviceLockedPermanent"]) {
+            [self authenticate:reason policy:LAPolicyDeviceOwnerAuthentication context:context fallback:fallbackEnabled callback:callback];
+        }else{
+            callback(response);
+        }
+    }];
+}
+
+-(void)authenticate: (NSString *)reason
+             policy: (LAPolicy) policy
+            context: (LAContext *)context
+           fallback: (BOOL)fallbackEnabled
+           callback: (RCTResponseSenderBlock)callback {
+    
+    if (!context) {
+        context = [[LAContext alloc] init];
+    }
     NSError *error;
 
     // Toggle fallback button
@@ -66,9 +95,9 @@ RCT_EXPORT_METHOD(authenticate: (NSString *)reason
     }
 
     // Device has FingerprintScanner
-    if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+    if ([context canEvaluatePolicy:policy error:&error]) {
         // Attempt Authentication
-        [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
+        [context evaluatePolicy:policy
                 localizedReason:reason
                           reply:^(BOOL success, NSError *error)
          {
