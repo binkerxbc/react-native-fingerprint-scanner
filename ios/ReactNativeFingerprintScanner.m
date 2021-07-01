@@ -68,6 +68,12 @@ RCT_EXPORT_METHOD(authenticate: (NSString *)reason
                 policy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
                context:context fallback:fallbackEnabled
               callback:^(NSArray *response) {
+        
+        id errorObj = response[0];
+        if ([errorObj isKindOfClass:[NSNull class]]) {
+            callback(response);
+            return;
+        }
         NSDictionary * errorDic = response[0];
         NSString * code = [errorDic objectForKey:@"code"];
         if ([code isEqualToString:@"DeviceLockedPermanent"]) {
